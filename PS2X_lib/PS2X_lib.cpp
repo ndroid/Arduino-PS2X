@@ -2,15 +2,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdint.h>
-#ifdef __AVR__
-#include <avr/io.h>
-#endif
-#if ARDUINO > 22
-  #include "Arduino.h"
-#else
-  #include "WProgram.h"
-  #include "pins_arduino.h"
-#endif
 
 static byte enter_config[]={0x01,0x43,0x00,0x01,0x00};
 static byte set_mode[]={0x01,0x44,0x00,0x01,0x03,0x00,0x00,0x00,0x00};
@@ -57,6 +48,9 @@ byte PS2X::Analog(byte button) {
 /****************************************************************************************/
 unsigned char PS2X::_gamepad_shiftinout (char byte) {
    unsigned char tmp = 0;
+#ifdef ENERGIA
+   noInterrupts();
+#endif
    for(unsigned char i=0;i<8;i++) {
       if(CHK(byte,i)) CMD_SET();
       else CMD_CLR();
@@ -73,6 +67,9 @@ unsigned char PS2X::_gamepad_shiftinout (char byte) {
 #endif
    }
    CMD_SET();
+#ifdef ENERGIA
+   interrupts();
+#endif
    delayMicroseconds(CTRL_BYTE_DELAY);
    return tmp;
 }
@@ -152,7 +149,7 @@ boolean PS2X::read_gamepad(boolean motor1, byte motor2) {
 
    last_buttons = buttons; //store the previous buttons states
 
-#if defined(__AVR__)
+#if defined(__AVR__) || defined(ENERGIA)
    buttons = *(uint16_t*)(PS2data+3);   //store as one value for multiple functions
 #else
    buttons =  (uint16_t)(PS2data[4] << 8) + PS2data[3];   //store as one value for multiple functions
@@ -171,7 +168,12 @@ byte PS2X::config_gamepad(uint8_t clk, uint8_t cmd, uint8_t att, uint8_t dat, bo
 
   byte temp[sizeof(type_read)];
 
-#ifdef __AVR__
+#if defined(ENERGIA) 
+  _clk_pin = clk;
+  _cmd_pin = cmd;
+  _att_pin = att;
+  _dat_pin = dat;
+#elif defined(__AVR__)
   _clk_mask = digitalPinToBitMask(clk);
   _clk_oreg = portOutputRegister(digitalPinToPort(clk));
   _cmd_mask = digitalPinToBitMask(cmd);
@@ -180,8 +182,7 @@ byte PS2X::config_gamepad(uint8_t clk, uint8_t cmd, uint8_t att, uint8_t dat, bo
   _att_oreg = portOutputRegister(digitalPinToPort(att));
   _dat_mask = digitalPinToBitMask(dat);
   _dat_ireg = portInputRegister(digitalPinToPort(dat));
-#else
-#ifdef ESP8266
+#elif defined(ESP8266)
   _clk_pin = clk;
   _cmd_pin = cmd;
   _att_pin = att;
@@ -206,12 +207,11 @@ byte PS2X::config_gamepad(uint8_t clk, uint8_t cmd, uint8_t att, uint8_t dat, bo
   _dat_mask = digitalPinToBitMask(dat);
   _dat_lport = portInputRegister(digitalPinToPort(dat));
 #endif
-#endif
 
   pinMode(clk, OUTPUT); //configure ports
   pinMode(att, OUTPUT);
   pinMode(cmd, OUTPUT);
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ENERGIA)
   pinMode(dat, INPUT_PULLUP); // enable pull-up
 #else
   pinMode(dat, INPUT);
@@ -386,7 +386,7 @@ bool PS2X::enablePressures() {
     return false;
 
   en_Pressures = true;
-    return true;
+  return true;
 }
 
 /****************************************************************************************/
@@ -401,7 +401,7 @@ void PS2X::reconfig_gamepad(){
 }
 
 /****************************************************************************************/
-#ifdef __AVR__
+#if defined(__AVR__)
 inline void  PS2X::CLK_SET(void) {
   register uint8_t old_sreg = SREG;
   cli();
@@ -448,9 +448,8 @@ inline bool PS2X::DAT_CHK(void) {
   return (*_dat_ireg & _dat_mask) ? true : false;
 }
 
-#else
-#ifdef ESP8266
-// Let's just use digitalWrite() on ESP8266.
+#elif defined(ESP8266) || defined(ENERGIA)
+// Let's just use digitalWrite() on ESP8266 and Launchpad
 inline void  PS2X::CLK_SET(void) {
   digitalWrite(_clk_pin, HIGH);
 }
@@ -478,6 +477,7 @@ inline void PS2X::ATT_CLR(void) {
 inline bool PS2X::DAT_CHK(void) {
   return digitalRead(_dat_pin) ? true : false;
 }
+
 #else
 // On pic32, use the set/clr registers to make them atomic...
 inline void  PS2X::CLK_SET(void) {
@@ -508,5 +508,4 @@ inline bool PS2X::DAT_CHK(void) {
   return (*_dat_lport & _dat_mask) ? true : false;
 }
 
-#endif
 #endif

@@ -1,5 +1,5 @@
 /******************************************************************
-*  Super amazing PS2 controller Arduino Library v1.8
+*  Super amazing PS2 controller Arduino Library v1.91
 *		details and example sketch: 
 *			http://www.billporter.info/?p=240
 *
@@ -12,6 +12,7 @@
 *	 Contributers:
 *		Eric Wetzel (thewetzel@gmail.com)
 *		Kurt Eckhardt
+*       chris miller
 *
 *  Lib version history
 *    0.1 made into library, added analog stick support. 
@@ -60,6 +61,8 @@
 *    1.9
 *       Kurt - Added detection and recovery from dropping from analog mode, plus
 *       integrated Chipkit (pic32mx...) support
+*    1.91
+*       chris - Added integration for Energia (only tested with MSP432 Launchpad)
 *
 *
 *
@@ -80,22 +83,34 @@ GNU General Public License for more details.
 #ifndef PS2X_lib_h
   #define PS2X_lib_h
 
-#if ARDUINO > 22
-  #include "Arduino.h"
-#else
-  #include "WProgram.h"
+#if defined(ENERGIA) // LaunchPad MSP430/432, Stellaris and Tiva, Experimeter Board FR5739 specific
+    #include "Energia.h"
+#elif defined(ARDUINO) && (ARDUINO >= 100) // Arduino 1.0 and 1.5 specific
+    #include "Arduino.h"
+#elif defined(ARDUINO)  // Arduino 23 specific
+    #include "WProgram.h"
+//#elif defined(MPIDE) // chipKIT specific
+//    #include "WProgram.h"
+//#elif defined(CORE_TEENSY) // Teensy specific
+//    #include "WProgram.h"
+#else // error
+    #error Platform not defined
 #endif
 
 #include <math.h>
 #include <stdio.h>
 #include <stdint.h>
-#ifdef __AVR__
+#if defined(ENERGIA) 
+  // LaunchPad MSP430/432, Stellaris and Tiva, Experimeter Board FR5739 specific
+  #define CTRL_CLK        1
+  #define CTRL_CLK_HIGH   1
+  #define CTRL_BYTE_DELAY 20
+#elif defined(__AVR__)
   // AVR
   #include <avr/io.h>
   #define CTRL_CLK        4
   #define CTRL_BYTE_DELAY 3
-#else
-#ifdef ESP8266
+#elif defined(ESP8266)
   #define CTRL_CLK        5
   #define CTRL_CLK_HIGH   5
   #define CTRL_BYTE_DELAY 18
@@ -105,7 +120,6 @@ GNU General Public License for more details.
   #define CTRL_CLK        5
   #define CTRL_CLK_HIGH   5
   #define CTRL_BYTE_DELAY 4
-#endif 
 #endif
 
 //These are our button constants
@@ -206,7 +220,14 @@ class PS2X {
     unsigned int last_buttons;
     unsigned int buttons;
 	
-    #ifdef __AVR__
+    #if defined(ENERGIA) 
+      // LaunchPad MSP430/432, Stellaris and Tiva, Experimeter Board FR5739 specific
+      uint8_t _clk_pin;
+      uint8_t _cmd_pin;
+      uint8_t _att_pin;
+      uint8_t _dat_pin;
+    #elif defined(__AVR__)
+      // AVR
       uint8_t maskToBitNum(uint8_t);
       uint8_t _clk_mask; 
       volatile uint8_t *_clk_oreg;
@@ -216,8 +237,7 @@ class PS2X {
       volatile uint8_t *_att_oreg;
       uint8_t _dat_mask; 
       volatile uint8_t *_dat_ireg;
-    #else
-    #ifdef ESP8266
+    #elif defined(ESP8266)
       int _clk_pin;
       int _cmd_pin;
       int _att_pin;
@@ -235,7 +255,6 @@ class PS2X {
       volatile uint32_t *_att_lport_clr;
       uint16_t _dat_mask; 
       volatile uint32_t *_dat_lport;
-    #endif
     #endif
 	
     unsigned long last_read;
