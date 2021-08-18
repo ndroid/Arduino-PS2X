@@ -101,7 +101,7 @@ GNU General Public License for more details.
 #include <stdio.h>
 #include <stdint.h>
 #if defined(ENERGIA) 
-  // LaunchPad MSP430/432, Stellaris and Tiva, Experimeter Board FR5739 specific
+  // LaunchPad MSP430/432, Stellaris and Tiva
   #define CTRL_CLK        1
   #define CTRL_CLK_HIGH   1
   #define CTRL_BYTE_DELAY 20
@@ -221,7 +221,7 @@ class PS2X {
     unsigned int buttons;
 	
     #if defined(ENERGIA) 
-      // LaunchPad MSP430/432, Stellaris and Tiva, Experimeter Board FR5739 specific
+      // LaunchPad MSP430/432, Stellaris and Tiva
       uint8_t _clk_pin;
       uint8_t _cmd_pin;
       uint8_t _att_pin;
